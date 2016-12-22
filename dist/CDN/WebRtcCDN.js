@@ -160,22 +160,22 @@ var WebRtcCDN =
 	    };
 	    ////////////////////////////////////////////////////////////////
 	    WebRTCLib.prototype.createStream = function (userMediaStream, getLocalStream, getRemoteStream) {
+	        var _this = this;
 	        navigator.getUserMedia(userMediaStream, function (myStream) {
-	            var _this = this;
-	            this.myRTCPeerConnection.addStream(myStream);
+	            _this.myRTCPeerConnection.addStream(myStream);
 	            getLocalStream(myStream);
-	            this.myRTCPeerConnection.onicecandidate = this.sendIceCandidates;
-	            this.myRTCPeerConnection.onaddstream = function (evt) {
+	            _this.myRTCPeerConnection.onicecandidate = _this.sendIceCandidates;
+	            _this.myRTCPeerConnection.onaddstream = function (evt) {
 	                getRemoteStream(evt.stream);
 	            };
 	            // This condition determine if you are the WebRTC's receiver or not
-	            if (this.tempRemoteDesc) {
-	                this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(this.tempRemoteDesc), function () {
-	                    this.myRTCPeerConnection.createAnswer(this.gettDescription, function (err) { return console.error(err); });
+	            if (_this.tempRemoteDesc) {
+	                _this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(_this.tempRemoteDesc), function () {
+	                    _this.myRTCPeerConnection.createAnswer(_this.getDescription, function (err) { return console.error(err); });
 	                }, function (err) { return console.error(err); });
 	            }
 	            else {
-	                this.myRTCPeerConnection.createOffer(function (myDesc) {
+	                _this.myRTCPeerConnection.createOffer(function (myDesc) {
 	                    _this.myRTCPeerConnection.setLocalDescription(myDesc);
 	                    var message = _this.buildMessage(myDesc, 'request_web_rtc');
 	                    _this.wsJmsLib.send(JSON.stringify(message), _this.channelID, function () { });

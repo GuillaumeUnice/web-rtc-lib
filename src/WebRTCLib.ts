@@ -120,7 +120,7 @@ export class WebRTCLib {
     getLocalStream: (stream: MediaStream) => any,
     getRemoteStream: (stream: MediaStream) => any) {
 
-    navigator.getUserMedia(userMediaStream, function(myStream) {
+    navigator.getUserMedia(userMediaStream, (myStream) => {
 
 				this.myRTCPeerConnection.addStream(myStream);
         getLocalStream(myStream);
@@ -135,9 +135,9 @@ export class WebRTCLib {
         if(this.tempRemoteDesc) {
           this.myRTCPeerConnection.setRemoteDescription(
             new RTCSessionDescription(this.tempRemoteDesc),
-            function() {
+            () => {
               this.myRTCPeerConnection.createAnswer(
-                this.gettDescription, 
+                this.getDescription, 
                 (err: Error) => console.error(err));
           }, (err: Error) => console.error(err));
         } else {
