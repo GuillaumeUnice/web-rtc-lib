@@ -1,0 +1,35 @@
+{
+  "name": "web-rtc-lib-cdn-echyzen",
+  "version": "0.0.23",
+  "description": "A Webpack deployment using TypeScript for a CDN library wich wrap WebRTC connection between two persons",
+  "main": "dist/index.js",
+  "scripts": {
+    "prepublish": "webpack --debug; webpack -p; tsc",
+    "postinstall": "typings install",
+    "typings": "typings"
+  },
+  "keywords": [
+    "webrtc",
+    "typescript",
+    "RTCPeerConnection"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "gulp": "^3.9.1",
+    "gulp-concat": "^2.6.1",
+    "mocha": "^2.4.5",
+    "transfer-webpack-plugin": "^0.1.4",
+    "ts-loader": "^0.8.1",
+    "tslint": "^3.5.0",
+    "tslint-loader": "^2.1.0",
+    "typedoc": "^0.5.1",
+    "typescript": "^1.8.2",
+    "webpack": "^1.12.14"
+  },
+  "dependencies": {
+    "@types/webrtc": "0.0.21",
+    "kaazing-enterprise-client": "^4.1.0",
+    "ws-jms-lib-echyzen": "0.0.x"
+  }
+}
