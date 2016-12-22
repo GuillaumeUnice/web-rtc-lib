@@ -16,6 +16,7 @@ var ws_jms_lib_echyzen_1 = require('ws-jms-lib-echyzen');
 //   static REQUEST = "request_web_rtc"; 
 //   static ICE_CANDIDATE = "ice_candidate_web_rtc";
 // }
+//"ws-jms-lib-echyzen": "0.0.17"
 var WebRTCLib = (function () {
     function WebRTCLib(url, channelID, userID) {
         var _this = this;
@@ -29,18 +30,30 @@ var WebRTCLib = (function () {
         });
     }
     WebRTCLib.prototype.dispatchMessage = function (message) {
+        var _this = this;
+        message = JSON.parse(message);
+        console.log('dispatchMessage', message);
         switch (message.type) {
             case 'request_web_rtc':
-                if (this.userID !== message.user_id)
+                if (this.userID !== message.user_id) {
+                    console.log('request_web_rtc', message);
+                    this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(this.tempRemoteDesc), function () {
+                        _this.myRTCPeerConnection.createAnswer(_this.getDescription, function (err) { return console.error(err); });
+                    }, function (err) { return console.error(err); });
                     this.tempRemoteDesc = message;
+                }
                 break;
             case 'ice_candidate_web_rtc':
-                if (this.userID !== message.user_id)
+                if (this.userID !== message.user_id) {
+                    console.log('ice_candidate_web_rtc', message);
                     this.listTempRemoteIceCandidate.push(message.message);
+                }
                 break;
             case 'response_web_rtc':
-                if (this.userID !== message.user_id)
+                if (this.userID !== message.user_id) {
+                    console.log('response_web_rtc', message);
                     this.responseWebRTC(message.message);
+                }
                 break;
             default:
                 break;
@@ -99,15 +112,14 @@ var WebRTCLib = (function () {
         navigator.getUserMedia(userMediaStream, function (myStream) {
             _this.myRTCPeerConnection.addStream(myStream);
             getLocalStream(myStream);
-            _this.myRTCPeerConnection.onicecandidate = _this.sendIceCandidates;
+            _this.myRTCPeerConnection.onicecandidate = function (myRTCIceCandidateEvent) {
+                _this.sendIceCandidates(myRTCIceCandidateEvent);
+            };
             _this.myRTCPeerConnection.onaddstream = function (evt) {
                 getRemoteStream(evt.stream);
             };
             // This condition determine if you are the WebRTC's receiver or not
             if (_this.tempRemoteDesc) {
-                _this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(_this.tempRemoteDesc), function () {
-                    _this.myRTCPeerConnection.createAnswer(_this.getDescription, function (err) { return console.error(err); });
-                }, function (err) { return console.error(err); });
             }
             else {
                 _this.myRTCPeerConnection.createOffer(function (myDesc) {

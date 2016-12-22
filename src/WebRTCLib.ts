@@ -20,6 +20,7 @@ import {wsJmsLib} from 'ws-jms-lib-echyzen';
 //   static REQUEST = "request_web_rtc"; 
 //   static ICE_CANDIDATE = "ice_candidate_web_rtc";
 // }
+    //"ws-jms-lib-echyzen": "0.0.17"
 
 export class WebRTCLib {
 
@@ -42,20 +43,37 @@ export class WebRTCLib {
   }
 
   private dispatchMessage(message: any): void {
+    message = JSON.parse(message);
+    console.log('dispatchMessage', message);
     switch (message.type) {
       case 'request_web_rtc':
-        if(this.userID !== message.user_id)
+        if(this.userID !== message.user_id) {
+          console.log('request_web_rtc', message);
+          this.myRTCPeerConnection.setRemoteDescription(
+            new RTCSessionDescription(this.tempRemoteDesc),
+            () => {
+              this.myRTCPeerConnection.createAnswer(
+                this.getDescription, 
+                (err: Error) => console.error(err));
+          }, (err: Error) => console.error(err));
+        
           this.tempRemoteDesc = message;
+        }
         break;
     
       case 'ice_candidate_web_rtc':
-        if(this.userID !== message.user_id)
+        if(this.userID !== message.user_id) {
+          console.log('ice_candidate_web_rtc', message);
           this.listTempRemoteIceCandidate.push(message.message);
+        }
         break;
 
       case 'response_web_rtc':
-        if(this.userID !== message.user_id)
+        if(this.userID !== message.user_id) {
+          console.log('response_web_rtc', message);
           this.responseWebRTC(message.message);
+        }
+          
         break;
 
       default:
@@ -125,7 +143,9 @@ export class WebRTCLib {
 				this.myRTCPeerConnection.addStream(myStream);
         getLocalStream(myStream);
 
-				this.myRTCPeerConnection.onicecandidate = this.sendIceCandidates;
+        this.myRTCPeerConnection.onicecandidate = (myRTCIceCandidateEvent: RTCIceCandidateEvent): void => {
+          this.sendIceCandidates(myRTCIceCandidateEvent);
+        };
 
 				this.myRTCPeerConnection.onaddstream = (evt: RTCMediaStreamEvent) => {
           getRemoteStream(evt.stream);
@@ -133,13 +153,7 @@ export class WebRTCLib {
 
         // This condition determine if you are the WebRTC's receiver or not
         if(this.tempRemoteDesc) {
-          this.myRTCPeerConnection.setRemoteDescription(
-            new RTCSessionDescription(this.tempRemoteDesc),
-            () => {
-              this.myRTCPeerConnection.createAnswer(
-                this.getDescription, 
-                (err: Error) => console.error(err));
-          }, (err: Error) => console.error(err));
+        
         } else {
           	this.myRTCPeerConnection.createOffer( (myDesc: RTCSessionDescription) => {
             
