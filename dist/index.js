@@ -3,4 +3,3 @@
 "use strict";
 var WebRTCLib_1 = require('./WebRTCLib');
 exports.WebRTCLib = WebRTCLib_1.WebRTCLib;
-//# sourceMappingURL=index.js.map

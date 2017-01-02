@@ -29,8 +29,7 @@ export class WebRTCLib {
   private myRTCPeerConnection: RTCPeerConnection;
   private wsJmsLib: wsJmsLib
 
-  private tempRemoteDesc: RTCSessionDescriptionInit;
-  private listTempRemoteIceCandidate: RTCIceCandidate[];
+  private listTempRemoteIceCandidate: RTCIceCandidate[] = [];
 
 	constructor(private url: string, private channelID: string, private userID: string) {
     
@@ -38,7 +37,7 @@ export class WebRTCLib {
     this.wsJmsLib = new wsJmsLib();
 
     this.wsJmsLib.connect(url, () => {
-      this.wsJmsLib.subscribe(channelID, this.dispatchMessage);
+      this.wsJmsLib.subscribe(channelID, this.dispatchMessage, this);
     });  
   }
 
@@ -50,21 +49,28 @@ export class WebRTCLib {
         if(this.userID !== message.user_id) {
           console.log('request_web_rtc', message);
           this.myRTCPeerConnection.setRemoteDescription(
-            new RTCSessionDescription(this.tempRemoteDesc),
+            new RTCSessionDescription(message.message),
             () => {
               this.myRTCPeerConnection.createAnswer(
-                this.getDescription, 
+                (myDesc: RTCSessionDescription) => {
+                  this.getDescription(myDesc);
+                }, 
                 (err: Error) => console.error(err));
           }, (err: Error) => console.error(err));
-        
-          this.tempRemoteDesc = message;
         }
         break;
     
       case 'ice_candidate_web_rtc':
         if(this.userID !== message.user_id) {
           console.log('ice_candidate_web_rtc', message);
-          this.listTempRemoteIceCandidate.push(message.message);
+          if(message.message) {
+            this.listTempRemoteIceCandidate.push(message.message);
+          } else {
+            this.listTempRemoteIceCandidate.forEach((remoteIceCandidate: RTCIceCandidate) => {
+              this.myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(remoteIceCandidate));
+            });
+          }
+          
         }
         break;
 
@@ -110,24 +116,21 @@ export class WebRTCLib {
   }
 
   private sendIceCandidates(myRTCIceCandidateEvent: RTCIceCandidateEvent): void {
+    let lightRTCIceCandidateEvent: any = null;
     if (myRTCIceCandidateEvent.candidate) {
-      let lightRTCIceCandidateEvent = {
+      lightRTCIceCandidateEvent = {
         sdpMid: myRTCIceCandidateEvent.candidate.sdpMid,
         sdpMLineIndex: myRTCIceCandidateEvent.candidate.sdpMLineIndex,
         candidate: myRTCIceCandidateEvent.candidate.candidate
       }
-      let message = this.buildMessage(lightRTCIceCandidateEvent, 'ice_candidate_web_rtc');
-      this.wsJmsLib.send(JSON.stringify(message), this.channelID, () => {});
     }
+    let message = this.buildMessage(lightRTCIceCandidateEvent, 'ice_candidate_web_rtc');
+    this.wsJmsLib.send(JSON.stringify(message), this.channelID, () => {});
   }
 
   private getDescription(myDesc: RTCSessionDescription) {
     this.myRTCPeerConnection.setLocalDescription(myDesc,
       () => {
-      this.listTempRemoteIceCandidate.forEach((remoteIceCandidate: RTCIceCandidate) => {
-        this.myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(remoteIceCandidate));
-      });
-
       let message = this.buildMessage(myDesc, 'response_web_rtc');
       this.wsJmsLib.send(JSON.stringify(message), this.channelID, () => {});
     });
@@ -150,22 +153,19 @@ export class WebRTCLib {
 				this.myRTCPeerConnection.onaddstream = (evt: RTCMediaStreamEvent) => {
           getRemoteStream(evt.stream);
         }
-
-        // This condition determine if you are the WebRTC's receiver or not
-        if(this.tempRemoteDesc) {
-        
-        } else {
-          	this.myRTCPeerConnection.createOffer( (myDesc: RTCSessionDescription) => {
-            
-            this.myRTCPeerConnection.setLocalDescription(myDesc);
-            let message = this.buildMessage(myDesc, 'request_web_rtc');
-            this.wsJmsLib.send(JSON.stringify(message), this.channelID, () => {});
-          },(err: Error) => { console.error(err) });
-        }
 		
 			}, (err: Error) => console.error(err));
 
 	}
+  
+  public createOffer() {
+    this.myRTCPeerConnection.createOffer( (myDesc: RTCSessionDescription) => {
+      this.myRTCPeerConnection.setLocalDescription(myDesc);
+      let message = this.buildMessage(myDesc, 'request_web_rtc');
+      this.wsJmsLib.send(JSON.stringify(message), this.channelID, () => {});
+    },(err: Error) => { console.error(err) });
+  }
+    
 
   static attachStream(mediaStream: MediaStream, HTMLElement: HTMLElement) {
     HTMLElement = attachMediaStream(HTMLElement, mediaStream);

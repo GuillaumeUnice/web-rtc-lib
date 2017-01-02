@@ -88,10 +88,11 @@ var WebRtcCDN =
 	        this.url = url;
 	        this.channelID = channelID;
 	        this.userID = userID;
+	        this.listTempRemoteIceCandidate = [];
 	        this.myRTCPeerConnection = this.getBrowserRTCConnectionObj();
 	        this.wsJmsLib = new ws_jms_lib_echyzen_1.wsJmsLib();
 	        this.wsJmsLib.connect(url, function () {
-	            _this.wsJmsLib.subscribe(channelID, _this.dispatchMessage);
+	            _this.wsJmsLib.subscribe(channelID, _this.dispatchMessage, _this);
 	        });
 	    }
 	    WebRTCLib.prototype.dispatchMessage = function (message) {
@@ -102,16 +103,24 @@ var WebRtcCDN =
 	            case 'request_web_rtc':
 	                if (this.userID !== message.user_id) {
 	                    console.log('request_web_rtc', message);
-	                    this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(this.tempRemoteDesc), function () {
-	                        _this.myRTCPeerConnection.createAnswer(_this.getDescription, function (err) { return console.error(err); });
+	                    this.myRTCPeerConnection.setRemoteDescription(new RTCSessionDescription(message.message), function () {
+	                        _this.myRTCPeerConnection.createAnswer(function (myDesc) {
+	                            _this.getDescription(myDesc);
+	                        }, function (err) { return console.error(err); });
 	                    }, function (err) { return console.error(err); });
-	                    this.tempRemoteDesc = message;
 	                }
 	                break;
 	            case 'ice_candidate_web_rtc':
 	                if (this.userID !== message.user_id) {
 	                    console.log('ice_candidate_web_rtc', message);
-	                    this.listTempRemoteIceCandidate.push(message.message);
+	                    if (message.message) {
+	                        this.listTempRemoteIceCandidate.push(message.message);
+	                    }
+	                    else {
+	                        this.listTempRemoteIceCandidate.forEach(function (remoteIceCandidate) {
+	                            _this.myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(remoteIceCandidate));
+	                        });
+	                    }
 	                }
 	                break;
 	            case 'response_web_rtc':
@@ -151,22 +160,20 @@ var WebRtcCDN =
 	        };
 	    };
 	    WebRTCLib.prototype.sendIceCandidates = function (myRTCIceCandidateEvent) {
+	        var lightRTCIceCandidateEvent = null;
 	        if (myRTCIceCandidateEvent.candidate) {
-	            var lightRTCIceCandidateEvent = {
+	            lightRTCIceCandidateEvent = {
 	                sdpMid: myRTCIceCandidateEvent.candidate.sdpMid,
 	                sdpMLineIndex: myRTCIceCandidateEvent.candidate.sdpMLineIndex,
 	                candidate: myRTCIceCandidateEvent.candidate.candidate
 	            };
-	            var message = this.buildMessage(lightRTCIceCandidateEvent, 'ice_candidate_web_rtc');
-	            this.wsJmsLib.send(JSON.stringify(message), this.channelID, function () { });
 	        }
+	        var message = this.buildMessage(lightRTCIceCandidateEvent, 'ice_candidate_web_rtc');
+	        this.wsJmsLib.send(JSON.stringify(message), this.channelID, function () { });
 	    };
 	    WebRTCLib.prototype.getDescription = function (myDesc) {
 	        var _this = this;
 	        this.myRTCPeerConnection.setLocalDescription(myDesc, function () {
-	            _this.listTempRemoteIceCandidate.forEach(function (remoteIceCandidate) {
-	                _this.myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(remoteIceCandidate));
-	            });
 	            var message = _this.buildMessage(myDesc, 'response_web_rtc');
 	            _this.wsJmsLib.send(JSON.stringify(message), _this.channelID, function () { });
 	        });
@@ -183,17 +190,15 @@ var WebRtcCDN =
 	            _this.myRTCPeerConnection.onaddstream = function (evt) {
 	                getRemoteStream(evt.stream);
 	            };
-	            // This condition determine if you are the WebRTC's receiver or not
-	            if (_this.tempRemoteDesc) {
-	            }
-	            else {
-	                _this.myRTCPeerConnection.createOffer(function (myDesc) {
-	                    _this.myRTCPeerConnection.setLocalDescription(myDesc);
-	                    var message = _this.buildMessage(myDesc, 'request_web_rtc');
-	                    _this.wsJmsLib.send(JSON.stringify(message), _this.channelID, function () { });
-	                }, function (err) { console.error(err); });
-	            }
 	        }, function (err) { return console.error(err); });
+	    };
+	    WebRTCLib.prototype.createOffer = function () {
+	        var _this = this;
+	        this.myRTCPeerConnection.createOffer(function (myDesc) {
+	            _this.myRTCPeerConnection.setLocalDescription(myDesc);
+	            var message = _this.buildMessage(myDesc, 'request_web_rtc');
+	            _this.wsJmsLib.send(JSON.stringify(message), _this.channelID, function () { });
+	        }, function (err) { console.error(err); });
 	    };
 	    WebRTCLib.attachStream = function (mediaStream, HTMLElement) {
 	        HTMLElement = attachMediaStream(HTMLElement, mediaStream);
@@ -260,8 +265,7 @@ var WebRtcCDN =
 	        });
 	    };
 	    ;
-	    wsJmsLib.prototype.subscribe = function (channelName, messageListener) {
-	        var _this = this;
+	    wsJmsLib.prototype.subscribe = function (channelName, messageListener, context) {
 	        // assuming connection has already been established and started
 	        // ideally we need to maintain the state of the connection and throw error
 	        // if the controller calls subscribe before connection is established
@@ -270,7 +274,7 @@ var WebRtcCDN =
 	        var consumer = this.session.createConsumer(topic);
 	        this.consumers[channelName] = consumer;
 	        consumer.setMessageListener(function (message) {
-	            messageListener.call(_this, message.getText());
+	            messageListener.call(context, message.getText());
 	        });
 	    };
 	    ;

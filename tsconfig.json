@@ -1,19 +1,12 @@
 {
-  "compileOnSave": false,
-  "compilerOptions": {
-    "declaration": false,
-    "module": "commonjs",
-    "noImplicitAny": true,
-    "preserveConstEnums": true,
-    "removeComments": false,
-    "sourceMap": true,
-    "target": "es5",
-    "outDir": "dist"
-  },
-  	"files": [
+	"compilerOptions": {
+		"declaration": false,
+		"module": "commonjs",
+		"target": "es5",
+		"noImplicitAny": true,
+		"outDir": "dist"
+	},
+	"files": [
 		"src/index.ts"
-	],
-  "exclude": [
-    "node_modules"
-  ]
+	]
 }
